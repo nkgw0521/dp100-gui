@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8" />
+        <title>DP-100 Controller</title>
+        <style>
+            /* リセット・基本 */
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family: sans-serif;
+                background: #1e1e1e;
+                color: #e0e0e0;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* ステータスバー */
+            #statusbar {
+                background: #2d2d2d;
+                padding: 6px 12px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                border-bottom: 1px solid #444;
+                font-size: 13px;
+            }
+
+            #connect-btn {
+                padding: 4px 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                background: #4caf50;
+                color: white;
+                font-size: 12px;
+            }
+
+            #connect-btn.disconnected {
+                background: #f44336;
+            }
+
+            #device-name {
+                color: #aaa;
+            }
+
+            /* メインレイアウト */
+            #main {
+                display: flex;
+                flex: 1;
+                overflow: hidden;
+            }
+
+            /* 左パネル: プロファイル */
+            #left-panel {
+                width: 160px;
+                background: #252525;
+                border-right: 1px solid #444;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            #left-panel h3 {
+                font-size: 12px;
+                color: #aaa;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+
+            .profile-btn {
+                padding: 8px;
+                background: #333;
+                border: 1px solid #555;
+                border-radius: 4px;
+                color: #e0e0e0;
+                cursor: pointer;
+                text-align: left;
+                font-size: 13px;
+            }
+
+            .profile-btn.active {
+                background: #1565c0;
+                border-color: #1976d2;
+            }
+
+            /* 右パネル */
+            #right-panel {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                padding: 12px;
+                gap: 12px;
+                overflow: hidden;
+            }
+
+            /* メーター表示 */
+            #meters {
+                display: flex;
+                gap: 12px;
+            }
+
+            .meter {
+                flex: 1;
+                background: #252525;
+                border: 1px solid #444;
+                border-radius: 8px;
+                padding: 12px;
+                text-align: center;
+            }
+
+            .meter .label {
+                font-size: 11px;
+                color: #aaa;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+
+            .meter .value {
+                font-size: 32px;
+                font-weight: bold;
+                font-family: monospace;
+                color: #4fc3f7;
+                margin: 4px 0;
+            }
+
+            .meter .unit {
+                font-size: 12px;
+                color: #aaa;
+            }
+
+            /* 設定パネル */
+            #settings {
+                background: #252525;
+                border: 1px solid #444;
+                border-radius: 8px;
+                padding: 12px;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .setting-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .setting-row label {
+                font-size: 12px;
+                color: #aaa;
+                width: 50px;
+            }
+
+            .setting-row input {
+                flex: 1;
+                background: #333;
+                border: 1px solid #555;
+                border-radius: 4px;
+                color: #e0e0e0;
+                padding: 4px 8px;
+                font-size: 14px;
+            }
+
+            .setting-row .unit {
+                font-size: 12px;
+                color: #aaa;
+                width: 20px;
+            }
+
+            /* OUTPUT ボタン */
+            #output-btn {
+                grid-column: 1 / -1;
+                padding: 12px;
+                font-size: 18px;
+                font-weight: bold;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                background: #4caf50;
+                color: white;
+                letter-spacing: 2px;
+            }
+
+            #output-btn.off {
+                background: #555;
+                color: #aaa;
+            }
+
+            /* グラフ */
+            #chart-area {
+                flex: 1;
+                background: #252525;
+                border: 1px solid #444;
+                border-radius: 8px;
+                padding: 12px;
+                min-height: 0;
+            }
+
+            #chart-area canvas {
+                width: 100% !important;
+                height: 100% !important;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- ステータスバー -->
+        <div id="statusbar">
+            <button id="connect-btn" class="disconnected">接続</button>
+            <span id="device-name">未接続</span>
+        </div>
+
+        <!-- メインレイアウト -->
+        <div id="main">
+            <!-- 左: プロファイル選択 -->
+            <div id="left-panel">
+                <h3>プロファイル</h3>
+                <div id="profile-list">
+                    <!-- JSで生成 -->
+                </div>
+            </div>
+
+            <!-- 右: メーター・設定・グラフ -->
+            <div id="right-panel">
+                <!-- メーター -->
+                <div id="meters">
+                    <div class="meter">
+                        <div class="label">Vin</div>
+                        <div class="value" id="vin">--.-</div>
+                        <div class="unit">V</div>
+                    </div>
+                    <div class="meter">
+                        <div class="label">Vout</div>
+                        <div class="value" id="vout">--.-</div>
+                        <div class="unit">V</div>
+                    </div>
+                    <div class="meter">
+                        <div class="label">Iout</div>
+                        <div class="value" id="iout">-.---</div>
+                        <div class="unit">A</div>
+                    </div>
+                    <div class="meter">
+                        <div class="label">Power</div>
+                        <div class="value" id="power">--.-</div>
+                        <div class="unit">W</div>
+                    </div>
+                    <div class="meter">
+                        <div class="label">Temp</div>
+                        <div class="value" id="temp">--.-</div>
+                        <div class="unit">℃</div>
+                    </div>
+                </div>
+
+                <!-- 設定パネル -->
+                <div id="settings">
+                    <div class="setting-row">
+                        <label>Vset</label>
+                        <input
+                            type="number"
+                            id="vset"
+                            step="0.01"
+                            min="0"
+                            max="30"
+                            value="5.00"
+                        />
+                        <span class="unit">V</span>
+                    </div>
+                    <div class="setting-row">
+                        <label>Iset</label>
+                        <input
+                            type="number"
+                            id="iset"
+                            step="0.001"
+                            min="0"
+                            max="5"
+                            value="1.000"
+                        />
+                        <span class="unit">A</span>
+                    </div>
+                    <div class="setting-row">
+                        <label>OVP</label>
+                        <input
+                            type="number"
+                            id="ovp"
+                            step="0.01"
+                            min="0"
+                            max="33"
+                            value="33.00"
+                        />
+                        <span class="unit">V</span>
+                    </div>
+                    <div class="setting-row">
+                        <label>OCP</label>
+                        <input
+                            type="number"
+                            id="ocp"
+                            step="0.001"
+                            min="0"
+                            max="5.5"
+                            value="5.500"
+                        />
+                        <span class="unit">A</span>
+                    </div>
+                    <button id="output-btn" class="off">OUTPUT OFF</button>
+                </div>
+
+                <!-- グラフ -->
+                <div id="chart-area">
+                    <canvas id="chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+        <script>
+            const { invoke } = window.__TAURI__.core;
+
+            // プロファイルキャッシュ
+            let profiles = Array(10).fill(null);
+            let connected = false;
+            let pollTimer = null;
+            let outputOn = false;
+
+            // プロファイルボタン生成
+            const profileList = document.getElementById("profile-list");
+            for (let i = 0; i < 10; i++) {
+                const btn = document.createElement("button");
+                btn.className = "profile-btn" + (i === 0 ? " active" : "");
+                btn.textContent = "Profile " + i;
+                btn.dataset.index = i;
+                btn.addEventListener("click", () => {
+                    document
+                        .querySelectorAll(".profile-btn")
+                        .forEach((b) => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    // キャッシュから表示（HID通信なし）
+                    if (profiles[i]) {
+                        showProfile(profiles[i]);
+                    }
+                });
+                profileList.appendChild(btn);
+            }
+
+            // 現在のプロファイルindexを取得
+            function activeProfileIndex() {
+                const btn = document.querySelector(".profile-btn.active");
+                return btn ? parseInt(btn.dataset.index) : 0;
+            }
+
+            // プロファイルをUIに反映
+            function showProfile(p) {
+                document.getElementById("vset").value = p.vset.toFixed(2);
+                document.getElementById("iset").value = p.iset.toFixed(3);
+                document.getElementById("ovp").value = p.ovp.toFixed(2);
+                document.getElementById("ocp").value = p.ocp.toFixed(3);
+                outputOn = p.output_on;
+                updateOutputBtn();
+            }
+
+            // OUTPUTボタン
+            const outputBtn = document.getElementById("output-btn");
+            outputBtn.addEventListener("click", async () => {
+                if (!connected) return;
+                outputOn = !outputOn;
+                try {
+                    await invoke("set_output", {
+                        index: activeProfileIndex(),
+                        on: outputOn,
+                    });
+                    // キャッシュ更新
+                    const idx = activeProfileIndex();
+                    if (profiles[idx]) profiles[idx].output_on = outputOn;
+                    updateOutputBtn();
+                } catch (e) {
+                    console.error("set_output error:", e);
+                    outputOn = !outputOn;
+                }
+            });
+
+            function updateOutputBtn() {
+                outputBtn.textContent = outputOn ? "OUTPUT ON" : "OUTPUT OFF";
+                outputBtn.classList.toggle("off", !outputOn);
+            }
+
+            // 設定値変更時にデバイスへ送信 & キャッシュ更新
+            async function applyProfile() {
+                if (!connected) return;
+                const idx = activeProfileIndex();
+                const p = {
+                    index: idx,
+                    output_on: outputOn,
+                    vset: parseFloat(document.getElementById("vset").value),
+                    iset: parseFloat(document.getElementById("iset").value),
+                    ovp: parseFloat(document.getElementById("ovp").value),
+                    ocp: parseFloat(document.getElementById("ocp").value),
+                };
+                try {
+                    await invoke("set_profile", { profile: p });
+                    profiles[idx] = p; // キャッシュ更新
+                } catch (e) {
+                    console.error("set_profile error:", e);
+                }
+            }
+
+            ["vset", "iset", "ovp", "ocp"].forEach((id) => {
+                document
+                    .getElementById(id)
+                    .addEventListener("change", applyProfile);
+            });
+
+            // Chart.js
+            const MAX_POINTS = 60;
+            const labels = Array(MAX_POINTS).fill("");
+            const voutData = Array(MAX_POINTS).fill(null);
+            const ioutData = Array(MAX_POINTS).fill(null);
+
+            const chart = new Chart(document.getElementById("chart"), {
+                type: "line",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Vout (V)",
+                            data: voutData,
+                            borderColor: "#4fc3f7",
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            yAxisID: "yV",
+                        },
+                        {
+                            label: "Iout (A)",
+                            data: ioutData,
+                            borderColor: "#ef9a9a",
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            yAxisID: "yI",
+                        },
+                    ],
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false },
+                        yV: {
+                            position: "left",
+                            ticks: { color: "#4fc3f7" },
+                            grid: { color: "#333" },
+                        },
+                        yI: {
+                            position: "right",
+                            ticks: { color: "#ef9a9a" },
+                            grid: { drawOnChartArea: false },
+                        },
+                    },
+                    plugins: {
+                        legend: { labels: { color: "#e0e0e0" } },
+                    },
+                },
+            });
+
+            function updateMeters(info) {
+                document.getElementById("vin").textContent =
+                    info.vin.toFixed(2);
+                document.getElementById("vout").textContent =
+                    info.vout.toFixed(2);
+                document.getElementById("iout").textContent =
+                    info.iout.toFixed(3);
+                document.getElementById("power").textContent = (
+                    info.vout * info.iout
+                ).toFixed(2);
+                document.getElementById("temp").textContent =
+                    info.temp.toFixed(1);
+
+                voutData.push(info.vout);
+                voutData.shift();
+                ioutData.push(info.iout);
+                ioutData.shift();
+                chart.update();
+            }
+
+            // ポーリング
+            async function poll() {
+                try {
+                    const info = await invoke("get_basic_info");
+                    updateMeters(info);
+                } catch (e) {
+                    console.error("poll error:", e);
+                    disconnect();
+                }
+            }
+
+            function disconnect() {
+                connected = false;
+                if (pollTimer) clearInterval(pollTimer);
+                pollTimer = null;
+                profiles = Array(10).fill(null);
+                connectBtn.textContent = "接続";
+                connectBtn.classList.add("disconnected");
+                document.getElementById("device-name").textContent = "未接続";
+            }
+
+            // 接続ボタン
+            const connectBtn = document.getElementById("connect-btn");
+            connectBtn.addEventListener("click", async () => {
+                if (connected) {
+                    disconnect();
+                    return;
+                }
+
+                try {
+                    // デバイス情報取得
+                    const name = await invoke("get_device_info");
+                    // 全プロファイル取得してキャッシュ
+                    profiles = await invoke("get_all_profiles");
+                    connected = true;
+                    connectBtn.textContent = "切断";
+                    connectBtn.classList.remove("disconnected");
+                    document.getElementById("device-name").textContent = name;
+
+                    // プロファイル0を表示
+                    showProfile(profiles[0]);
+
+                    // ポーリング開始
+                    pollTimer = setInterval(poll, 500);
+                } catch (e) {
+                    document.getElementById("device-name").textContent =
+                        "接続失敗: " + e;
+                }
+            });
+        </script>
+    </body>
+</html>
