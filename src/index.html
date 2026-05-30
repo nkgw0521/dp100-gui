@@ -340,7 +340,7 @@
             let connected = false;
             let pollTimer = null;
             let outputOn = false;
-
+            let activeOutputIndex = 0; // OUTPUT ONしたときのプロファイルindex
             // プロファイルボタン生成
             const profileList = document.getElementById("profile-list");
             for (let i = 0; i < 10; i++) {
@@ -349,12 +349,12 @@
                 btn.textContent = "Profile " + i;
                 btn.dataset.index = i;
                 btn.addEventListener("click", () => {
-                    if (!connected) return; // 追加: 未接続時は無視
+                    if (!connected) return;
+                    if (outputOn) return; // OUTPUT ON中は切り替え禁止
                     document
                         .querySelectorAll(".profile-btn")
                         .forEach((b) => b.classList.remove("active"));
                     btn.classList.add("active");
-                    // キャッシュから表示（HID通信なし）
                     if (profiles[i]) {
                         showProfile(profiles[i]);
                     }
@@ -382,19 +382,26 @@
             const outputBtn = document.getElementById("output-btn");
             outputBtn.addEventListener("click", async () => {
                 if (!connected) return;
-                outputOn = !outputOn;
+                const newState = !outputOn;
                 try {
-                    await invoke("set_output", {
-                        index: activeProfileIndex(),
-                        on: outputOn,
-                    });
-                    // キャッシュ更新
-                    const idx = activeProfileIndex();
-                    if (profiles[idx]) profiles[idx].output_on = outputOn;
+                    if (newState) {
+                        // ONにするときは現在選択中のプロファイル
+                        activeOutputIndex = activeProfileIndex();
+                        await invoke("set_output", {
+                            index: activeOutputIndex,
+                            on: true,
+                        });
+                    } else {
+                        // OFFにするときはONにしたときのプロファイル
+                        await invoke("set_output", {
+                            index: activeOutputIndex,
+                            on: false,
+                        });
+                    }
+                    outputOn = newState;
                     updateOutputBtn();
                 } catch (e) {
                     console.error("set_output error:", e);
-                    outputOn = !outputOn;
                 }
             });
 
@@ -495,12 +502,6 @@
                 document.getElementById("temp").textContent =
                     info.temp.toFixed(1);
 
-                // OUTPUT状態を同期
-                if (info.output_on !== outputOn) {
-                    outputOn = info.output_on;
-                    updateOutputBtn();
-                }
-
                 voutData.push(info.vout);
                 voutData.shift();
                 ioutData.push(info.iout);
@@ -527,7 +528,7 @@
                 connectBtn.textContent = "接続";
                 connectBtn.classList.add("disconnected");
                 document.getElementById("device-name").textContent = "未接続";
-                pdateUI();
+                updateUI(); // pdateUI → updateUI
             }
 
             // 接続ボタン
@@ -549,6 +550,11 @@
                     document.getElementById("device-name").textContent = name;
                     // プロファイル0を表示
                     showProfile(profiles[activeProfileIndex()]);
+                    // 接続時に初期OUTPUT状態を取得
+                    const initialInfo = await invoke("get_basic_info");
+                    outputOn = initialInfo.output_on;
+                    activeOutputIndex = activeProfileIndex();
+                    updateOutputBtn();
                     // ポーリング開始
                     pollTimer = setInterval(poll, 500);
                     updateUI();
@@ -560,15 +566,16 @@
             // UI状態を更新する
             function updateUI() {
                 const inputs = ["vset", "iset", "ovp", "ocp"];
-
-                // プロファイルボタンはdisabledにしない（選択表示は許可）
                 outputBtn.disabled = !connected;
                 inputs.forEach((id) => {
                     document.getElementById(id).disabled =
                         !connected || outputOn;
                 });
+                // OUTPUT ON中はプロファイルボタンを半透明に
+                document.querySelectorAll(".profile-btn").forEach((b) => {
+                    b.style.opacity = connected && outputOn ? "0.4" : "1.0";
+                });
             }
-            axs;
         </script>
     </body>
 </html>

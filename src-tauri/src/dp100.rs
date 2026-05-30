@@ -95,7 +95,7 @@ impl Dp100 {
     pub fn get_basic_info(&self) -> Result<BasicInfo, String> {
         self.send(CMD_BASIC_INFO, &[])?;
         let data = self.recv(CMD_BASIC_INFO)?;
-
+        //log::info!("basic_info full: {:02X?}", &data);
         if data.len() < 15 {
             return Err(format!("データ不足: {} bytes", data.len()));
         }
@@ -114,7 +114,11 @@ impl Dp100 {
         self.send(CMD_BASIC_SET, &[index])?;
         let data = self.recv(CMD_BASIC_SET)?;
 
-        //log::info!("get_profile({}) raw: {:02X?}",index,&data[0..10.min(data.len())]);
+        //log::info!(
+        //    "get_profile({}) raw: {:02X?}",
+        //    index,
+        //    &data[0..10.min(data.len())]
+        //);
 
         if data.len() < 10 {
             return Err(format!("データ不足: {} bytes", data.len()));
