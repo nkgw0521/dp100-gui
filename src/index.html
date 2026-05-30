@@ -207,6 +207,20 @@
                 width: 100% !important;
                 height: 100% !important;
             }
+            .profile-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+
+            .setting-row input:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+
+            #output-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
         </style>
     </head>
     <body>
@@ -335,6 +349,7 @@
                 btn.textContent = "Profile " + i;
                 btn.dataset.index = i;
                 btn.addEventListener("click", () => {
+                    if (!connected) return; // 追加: 未接続時は無視
                     document
                         .querySelectorAll(".profile-btn")
                         .forEach((b) => b.classList.remove("active"));
@@ -386,6 +401,7 @@
             function updateOutputBtn() {
                 outputBtn.textContent = outputOn ? "OUTPUT ON" : "OUTPUT OFF";
                 outputBtn.classList.toggle("off", !outputOn);
+                updateUI();
             }
 
             // 設定値変更時にデバイスへ送信 & キャッシュ更新
@@ -479,6 +495,12 @@
                 document.getElementById("temp").textContent =
                     info.temp.toFixed(1);
 
+                // OUTPUT状態を同期
+                if (info.output_on !== outputOn) {
+                    outputOn = info.output_on;
+                    updateOutputBtn();
+                }
+
                 voutData.push(info.vout);
                 voutData.shift();
                 ioutData.push(info.iout);
@@ -505,6 +527,7 @@
                 connectBtn.textContent = "接続";
                 connectBtn.classList.add("disconnected");
                 document.getElementById("device-name").textContent = "未接続";
+                pdateUI();
             }
 
             // 接続ボタン
@@ -524,17 +547,28 @@
                     connectBtn.textContent = "切断";
                     connectBtn.classList.remove("disconnected");
                     document.getElementById("device-name").textContent = name;
-
                     // プロファイル0を表示
-                    showProfile(profiles[0]);
-
+                    showProfile(profiles[activeProfileIndex()]);
                     // ポーリング開始
                     pollTimer = setInterval(poll, 500);
+                    updateUI();
                 } catch (e) {
                     document.getElementById("device-name").textContent =
                         "接続失敗: " + e;
                 }
             });
+            // UI状態を更新する
+            function updateUI() {
+                const inputs = ["vset", "iset", "ovp", "ocp"];
+
+                // プロファイルボタンはdisabledにしない（選択表示は許可）
+                outputBtn.disabled = !connected;
+                inputs.forEach((id) => {
+                    document.getElementById(id).disabled =
+                        !connected || outputOn;
+                });
+            }
+            axs;
         </script>
     </body>
 </html>

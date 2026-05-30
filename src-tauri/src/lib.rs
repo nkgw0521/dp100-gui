@@ -37,7 +37,7 @@ fn get_all_profiles() -> Result<Vec<dp100::Profile>, String> {
                                             //    ocp: 5.5,
                                             //});
     }
-    log::info!("get_all_profiles returning {} profiles", profiles.len());
+    //log::info!("get_all_profiles returning {} profiles", profiles.len());
     Ok(profiles)
 }
 

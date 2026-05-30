@@ -20,7 +20,14 @@ impl Dp100 {
         Ok(Self { device })
     }
 
+    // バッファをフラッシュする
+    fn flush(&self) {
+        let mut buf = [0u8; 64];
+        while self.device.read_timeout(&mut buf, 0).unwrap_or(0) > 0 {}
+    }
+
     fn send(&self, cmd: u8, data: &[u8]) -> Result<(), String> {
+        self.flush(); // 送信前にフラッシュ
         let mut pkt = [0u8; PKT_SIZE + 1];
         pkt[0] = 0x00;
         pkt[1] = 0xFB;
@@ -75,10 +82,12 @@ impl Dp100 {
     pub fn get_device_info(&self) -> Result<String, String> {
         self.send(CMD_DEVICE_INFO, &[])?;
         let data = self.recv(CMD_DEVICE_INFO)?;
-        // Byte0〜15: デバイス名 ASCII
-        let name = String::from_utf8_lossy(&data[0..16])
-            .trim_matches('\0')
-            .to_string();
+        // ASCII文字のみ抽出
+        let name: String = data[0..16]
+            .iter()
+            .filter(|&&b| b.is_ascii_graphic() || b == b' ')
+            .map(|&b| b as char)
+            .collect();
         Ok(name)
     }
 
@@ -87,27 +96,25 @@ impl Dp100 {
         self.send(CMD_BASIC_INFO, &[])?;
         let data = self.recv(CMD_BASIC_INFO)?;
 
-        if data.len() < 8 {
+        if data.len() < 15 {
             return Err(format!("データ不足: {} bytes", data.len()));
         }
 
         Ok(BasicInfo {
-            vin: u16::from_le_bytes([data[0], data[1]]) as f64 / 100.0,
-            vout: u16::from_le_bytes([data[2], data[3]]) as f64 / 100.0,
+            vin: u16::from_le_bytes([data[0], data[1]]) as f64 / 1000.0,
+            vout: u16::from_le_bytes([data[2], data[3]]) as f64 / 1000.0,
             iout: u16::from_le_bytes([data[4], data[5]]) as f64 / 1000.0,
-            temp: u16::from_le_bytes([data[6], data[7]]) as f64 / 10.0,
+            temp: u16::from_le_bytes([data[6], data[7]]) as f64 / 100.0,
+            output_on: data[14] == 0x01, // 0x01=ON, 0x02=OFF
         })
     }
 
     // プロファイル取得 (index: 0〜9, 0xFFでアクティブ)
     pub fn get_profile(&self, index: u8) -> Result<Profile, String> {
-        let cmd_byte = if index == 0xFF {
-            0x80
-        } else {
-            0x80 | (index & 0x0F)
-        };
-        self.send(CMD_BASIC_SET, &[cmd_byte])?;
+        self.send(CMD_BASIC_SET, &[index])?;
         let data = self.recv(CMD_BASIC_SET)?;
+
+        //log::info!("get_profile({}) raw: {:02X?}",index,&data[0..10.min(data.len())]);
 
         if data.len() < 10 {
             return Err(format!("データ不足: {} bytes", data.len()));
@@ -116,22 +123,22 @@ impl Dp100 {
         Ok(Profile {
             index: data[0],
             output_on: data[1] == 0x01,
-            vset: u16::from_le_bytes([data[2], data[3]]) as f64 / 100.0,
+            vset: u16::from_le_bytes([data[2], data[3]]) as f64 / 1000.0, // 100.0→1000.0
             iset: u16::from_le_bytes([data[4], data[5]]) as f64 / 1000.0,
-            ovp: u16::from_le_bytes([data[6], data[7]]) as f64 / 100.0,
+            ovp: u16::from_le_bytes([data[6], data[7]]) as f64 / 1000.0, // 100.0→1000.0
             ocp: u16::from_le_bytes([data[8], data[9]]) as f64 / 1000.0,
         })
     }
 
     // プロファイル書き込み (0x35 / 0x4X)
     pub fn set_profile(&self, profile: &Profile) -> Result<(), String> {
-        let vset = (profile.vset * 100.0) as u16;
+        let vset = (profile.vset * 1000.0) as u16;
         let iset = (profile.iset * 1000.0) as u16;
-        let ovp = (profile.ovp * 100.0) as u16;
+        let ovp = (profile.ovp * 1000.0) as u16;
         let ocp = (profile.ocp * 1000.0) as u16;
 
         let data = [
-            0x40 | (profile.index & 0x0F), // 書き込みコマンド
+            0x40 | (profile.index & 0x0F),
             profile.output_on as u8,
             (vset & 0xFF) as u8,
             (vset >> 8) as u8,
@@ -142,17 +149,38 @@ impl Dp100 {
             (ocp & 0xFF) as u8,
             (ocp >> 8) as u8,
         ];
-
+        //log::info!("set_profile({}) data: {:02X?}", profile.index, &data);
         self.send(CMD_BASIC_SET, &data)?;
-        self.recv(CMD_BASIC_SET)?;
+        //let resp = self.recv(CMD_BASIC_SET)?;
+        //log::info!("set_profile response: {:02X?}", &resp[0..4.min(resp.len())]);
         Ok(())
     }
 
     // 出力ON/OFF (0x35 / 0x2X)
     pub fn set_output(&self, index: u8, on: bool) -> Result<(), String> {
-        let data = [0x20 | (index & 0x0F), on as u8];
+        // まずプロファイル情報を取得
+        let profile = self.get_profile(index)?;
+        let vset = (profile.vset * 1000.0) as u16;
+        let iset = (profile.iset * 1000.0) as u16;
+        let ovp = (profile.ovp * 1000.0) as u16;
+        let ocp = (profile.ocp * 1000.0) as u16;
+
+        let data = [
+            0x20 | (index & 0x0F), // ON/OFFコマンド
+            on as u8,              // ON=1 / OFF=0
+            (vset & 0xFF) as u8,
+            (vset >> 8) as u8,
+            (iset & 0xFF) as u8,
+            (iset >> 8) as u8,
+            (ovp & 0xFF) as u8,
+            (ovp >> 8) as u8,
+            (ocp & 0xFF) as u8,
+            (ocp >> 8) as u8,
+        ];
+        //log::info!("set_output data: {:02X?}", &data);
         self.send(CMD_BASIC_SET, &data)?;
-        self.recv(CMD_BASIC_SET)?;
+        //let resp = self.recv(CMD_BASIC_SET)?;
+        //log::info!("set_output response: {:02X?}", &resp[0..4.min(resp.len())]);
         Ok(())
     }
 }
@@ -163,6 +191,7 @@ pub struct BasicInfo {
     pub vout: f64,
     pub iout: f64,
     pub temp: f64,
+    pub output_on: bool,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
