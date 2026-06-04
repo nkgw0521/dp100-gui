@@ -104,7 +104,7 @@ impl Dp100 {
             vin: u16::from_le_bytes([data[0], data[1]]) as f64 / 1000.0,
             vout: u16::from_le_bytes([data[2], data[3]]) as f64 / 1000.0,
             iout: u16::from_le_bytes([data[4], data[5]]) as f64 / 1000.0,
-            temp: u16::from_le_bytes([data[6], data[7]]) as f64 / 100.0,
+            temp: u16::from_le_bytes([data[6], data[7]]) as f64 / 1000.0,
             output_on: data[14] == 0x01, // 0x01=ON, 0x02=OFF
         })
     }

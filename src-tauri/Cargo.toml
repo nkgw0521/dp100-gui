@@ -24,3 +24,6 @@ log = "0.4"
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
 hidapi = "2.6.6"
+
+[target.'cfg(windows)'.dependencies]
+hidapi = { version = "2.6", features = ["windows-native"] }
