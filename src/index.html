@@ -4,7 +4,6 @@
         <meta charset="UTF-8" />
         <title>DP-100 Controller</title>
         <style>
-            /* リセット・基本 */
             * {
                 box-sizing: border-box;
                 margin: 0;
@@ -44,7 +43,6 @@
             #connect-btn.disconnected {
                 background: #f44336;
             }
-
             #device-name {
                 color: #aaa;
             }
@@ -135,12 +133,30 @@
                 color: #aaa;
             }
 
-            /* 設定パネル */
-            #settings {
+            /* 中段: Profile設定 + Output Control */
+            #control-area {
+                display: flex;
+                gap: 12px;
+            }
+
+            /* Profile設定パネル */
+            #profile-settings {
+                flex: 1;
                 background: #252525;
                 border: 1px solid #444;
                 border-radius: 8px;
                 padding: 12px;
+            }
+
+            #profile-settings h3 {
+                font-size: 12px;
+                color: #aaa;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 8px;
+            }
+
+            .settings-grid {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 8px;
@@ -168,15 +184,59 @@
                 font-size: 14px;
             }
 
+            .setting-row input:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+
             .setting-row .unit {
                 font-size: 12px;
                 color: #aaa;
                 width: 20px;
             }
 
-            /* OUTPUT ボタン */
-            #output-btn {
+            #apply-btn {
                 grid-column: 1 / -1;
+                padding: 8px;
+                font-size: 14px;
+                font-weight: bold;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                background: #1565c0;
+                color: white;
+                margin-top: 4px;
+            }
+
+            #apply-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+
+            /* Output Controlパネル */
+            #output-control {
+                width: 220px;
+                background: #252525;
+                border: 1px solid #444;
+                border-radius: 8px;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            #output-control h3 {
+                font-size: 12px;
+                color: #aaa;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+
+            #output-control .setting-row input {
+                font-size: 16px;
+            }
+
+            #output-btn {
                 padding: 12px;
                 font-size: 18px;
                 font-weight: bold;
@@ -186,11 +246,17 @@
                 background: #4caf50;
                 color: white;
                 letter-spacing: 2px;
+                margin-top: 4px;
             }
 
             #output-btn.off {
                 background: #555;
                 color: #aaa;
+            }
+
+            #output-btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
             }
 
             /* グラフ */
@@ -207,20 +273,6 @@
                 width: 100% !important;
                 height: 100% !important;
             }
-            .profile-btn:disabled {
-                opacity: 0.4;
-                cursor: not-allowed;
-            }
-
-            .setting-row input:disabled {
-                opacity: 0.4;
-                cursor: not-allowed;
-            }
-
-            #output-btn:disabled {
-                opacity: 0.4;
-                cursor: not-allowed;
-            }
         </style>
     </head>
     <body>
@@ -235,12 +287,10 @@
             <!-- 左: プロファイル選択 -->
             <div id="left-panel">
                 <h3>プロファイル</h3>
-                <div id="profile-list">
-                    <!-- JSで生成 -->
-                </div>
+                <div id="profile-list"></div>
             </div>
 
-            <!-- 右: メーター・設定・グラフ -->
+            <!-- 右 -->
             <div id="right-panel">
                 <!-- メーター -->
                 <div id="meters">
@@ -271,57 +321,93 @@
                     </div>
                 </div>
 
-                <!-- 設定パネル -->
-                <div id="settings">
-                    <div class="setting-row">
-                        <label>Vset</label>
-                        <input
-                            type="number"
-                            id="vset"
-                            step="0.01"
-                            min="0"
-                            max="30"
-                            value="5.00"
-                        />
-                        <span class="unit">V</span>
+                <!-- 中段: Profile設定 + Output Control -->
+                <div id="control-area">
+                    <!-- Profile設定（保存用） -->
+                    <div id="profile-settings">
+                        <h3>Profile 設定（保存）</h3>
+                        <div class="settings-grid">
+                            <div class="setting-row">
+                                <label>Vset</label>
+                                <input
+                                    type="number"
+                                    id="vset"
+                                    step="0.01"
+                                    min="0"
+                                    max="30"
+                                    value="5.00"
+                                />
+                                <span class="unit">V</span>
+                            </div>
+                            <div class="setting-row">
+                                <label>Iset</label>
+                                <input
+                                    type="number"
+                                    id="iset"
+                                    step="0.001"
+                                    min="0"
+                                    max="5"
+                                    value="1.000"
+                                />
+                                <span class="unit">A</span>
+                            </div>
+                            <div class="setting-row">
+                                <label>OVP</label>
+                                <input
+                                    type="number"
+                                    id="ovp"
+                                    step="0.01"
+                                    min="0"
+                                    max="33"
+                                    value="33.00"
+                                />
+                                <span class="unit">V</span>
+                            </div>
+                            <div class="setting-row">
+                                <label>OCP</label>
+                                <input
+                                    type="number"
+                                    id="ocp"
+                                    step="0.001"
+                                    min="0"
+                                    max="5.5"
+                                    value="5.500"
+                                />
+                                <span class="unit">A</span>
+                            </div>
+                            <button id="apply-btn">Apply</button>
+                        </div>
                     </div>
-                    <div class="setting-row">
-                        <label>Iset</label>
-                        <input
-                            type="number"
-                            id="iset"
-                            step="0.001"
-                            min="0"
-                            max="5"
-                            value="1.000"
-                        />
-                        <span class="unit">A</span>
+
+                    <!-- Output Control（即時変更） -->
+                    <div id="output-control">
+                        <h3>Output Control</h3>
+                        <div class="setting-row">
+                            <label>V</label>
+                            <input
+                                type="number"
+                                id="out-v"
+                                step="0.01"
+                                min="0"
+                                max="30"
+                                value="5.00"
+                            />
+                            <span class="unit">V</span>
+                        </div>
+                        <div class="setting-row">
+                            <label>A</label>
+                            <input
+                                type="number"
+                                id="out-a"
+                                step="0.001"
+                                min="0"
+                                max="5"
+                                value="1.000"
+                            />
+                            <span class="unit">A</span>
+                        </div>
+                        <button id="output-btn" class="off">OUTPUT OFF</button>
                     </div>
-                    <div class="setting-row">
-                        <label>OVP</label>
-                        <input
-                            type="number"
-                            id="ovp"
-                            step="0.01"
-                            min="0"
-                            max="33"
-                            value="33.00"
-                        />
-                        <span class="unit">V</span>
-                    </div>
-                    <div class="setting-row">
-                        <label>OCP</label>
-                        <input
-                            type="number"
-                            id="ocp"
-                            step="0.001"
-                            min="0"
-                            max="5.5"
-                            value="5.500"
-                        />
-                        <span class="unit">A</span>
-                    </div>
-                    <button id="output-btn" class="off">OUTPUT OFF</button>
                 </div>
 
                 <!-- グラフ -->
@@ -331,16 +417,16 @@
             </div>
         </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+        <script src="chart.js"></script>
         <script>
             const { invoke } = window.__TAURI__.core;
 
-            // プロファイルキャッシュ
             let profiles = Array(10).fill(null);
             let connected = false;
             let pollTimer = null;
             let outputOn = false;
-            let activeOutputIndex = 0; // OUTPUT ONしたときのプロファイルindex
+            let activeOutputIndex = 0;
+
             // プロファイルボタン生成
             const profileList = document.getElementById("profile-list");
             for (let i = 0; i < 10; i++) {
@@ -350,52 +436,90 @@
                 btn.dataset.index = i;
                 btn.addEventListener("click", () => {
                     if (!connected) return;
-                    if (outputOn) return; // OUTPUT ON中は切り替え禁止
+                    if (outputOn) return;
                     document
                         .querySelectorAll(".profile-btn")
                         .forEach((b) => b.classList.remove("active"));
                     btn.classList.add("active");
-                    if (profiles[i]) {
-                        showProfile(profiles[i]);
-                    }
+                    if (profiles[i]) showProfile(profiles[i]);
                 });
                 profileList.appendChild(btn);
             }
 
-            // 現在のプロファイルindexを取得
             function activeProfileIndex() {
                 const btn = document.querySelector(".profile-btn.active");
                 return btn ? parseInt(btn.dataset.index) : 0;
             }
 
-            // プロファイルをUIに反映
+            // Profile設定をUIに反映
             function showProfile(p) {
                 document.getElementById("vset").value = p.vset.toFixed(2);
                 document.getElementById("iset").value = p.iset.toFixed(3);
                 document.getElementById("ovp").value = p.ovp.toFixed(2);
                 document.getElementById("ocp").value = p.ocp.toFixed(3);
-                outputOn = p.output_on;
-                updateOutputBtn();
+                // OUTPUT OFF中のみOutput Controlも更新
+                if (!outputOn) {
+                    document.getElementById("out-v").value = p.vset.toFixed(2);
+                    document.getElementById("out-a").value = p.iset.toFixed(3);
+                }
             }
+            // Applyボタン: プロファイルに保存
+            document
+                .getElementById("apply-btn")
+                .addEventListener("click", async () => {
+                    if (!connected) return;
+                    const idx = activeProfileIndex();
+                    const p = {
+                        index: idx,
+                        output_on: outputOn,
+                        vset: parseFloat(document.getElementById("vset").value),
+                        iset: parseFloat(document.getElementById("iset").value),
+                        ovp: parseFloat(document.getElementById("ovp").value),
+                        ocp: parseFloat(document.getElementById("ocp").value),
+                    };
+                    try {
+                        await invoke("set_profile", { profile: p });
+                        profiles[idx] = p;
+                        // Output Controlにも反映
+                        document.getElementById("out-v").value =
+                            p.vset.toFixed(2);
+                        document.getElementById("out-a").value =
+                            p.iset.toFixed(3);
+                    } catch (e) {
+                        console.error("set_profile error:", e);
+                    }
+                });
 
             // OUTPUTボタン
             const outputBtn = document.getElementById("output-btn");
             outputBtn.addEventListener("click", async () => {
                 if (!connected) return;
                 const newState = !outputOn;
+                const vset = parseFloat(document.getElementById("out-v").value);
+                const iset = parseFloat(document.getElementById("out-a").value);
+                const idx = activeProfileIndex();
+                const p = profiles[idx];
+                const ovp = p ? p.ovp : 33.0;
+                const ocp = p ? p.ocp : 5.5;
                 try {
                     if (newState) {
-                        // ONにするときは現在選択中のプロファイル
-                        activeOutputIndex = activeProfileIndex();
-                        await invoke("set_output", {
+                        activeOutputIndex = idx;
+                        await invoke("set_output_immediate", {
                             index: activeOutputIndex,
                             on: true,
+                            vset,
+                            iset,
+                            ovp,
+                            ocp,
                         });
                     } else {
-                        // OFFにするときはONにしたときのプロファイル
-                        await invoke("set_output", {
+                        await invoke("set_output_immediate", {
                             index: activeOutputIndex,
                             on: false,
+                            vset,
+                            iset,
+                            ovp,
+                            ocp,
                         });
                     }
                     outputOn = newState;
@@ -411,31 +535,51 @@
                 updateUI();
             }
 
-            // 設定値変更時にデバイスへ送信 & キャッシュ更新
-            async function applyProfile() {
-                if (!connected) return;
-                const idx = activeProfileIndex();
-                const p = {
-                    index: idx,
-                    output_on: outputOn,
-                    vset: parseFloat(document.getElementById("vset").value),
-                    iset: parseFloat(document.getElementById("iset").value),
-                    ovp: parseFloat(document.getElementById("ovp").value),
-                    ocp: parseFloat(document.getElementById("ocp").value),
-                };
-                try {
-                    await invoke("set_profile", { profile: p });
-                    profiles[idx] = p; // キャッシュ更新
-                } catch (e) {
-                    console.error("set_profile error:", e);
-                }
-            }
-
-            ["vset", "iset", "ovp", "ocp"].forEach((id) => {
+            // Output Control: 値変更時に即時反映
+            ["out-v", "out-a"].forEach((id) => {
                 document
                     .getElementById(id)
-                    .addEventListener("change", applyProfile);
+                    .addEventListener("change", async () => {
+                        if (!connected || !outputOn) return;
+                        const vset = parseFloat(
+                            document.getElementById("out-v").value,
+                        );
+                        const iset = parseFloat(
+                            document.getElementById("out-a").value,
+                        );
+                        const idx = activeProfileIndex();
+                        const p = profiles[idx];
+                        const ovp = p ? p.ovp : 33.0;
+                        const ocp = p ? p.ocp : 5.5;
+                        try {
+                            await invoke("set_output_immediate", {
+                                index: activeOutputIndex,
+                                on: true,
+                                vset,
+                                iset,
+                                ovp,
+                                ocp,
+                            });
+                        } catch (e) {
+                            console.error("set_output_immediate error:", e);
+                        }
+                    });
             });
+
+            // UI状態更新
+            function updateUI() {
+                const profileSettingInputs = ["vset", "iset", "ovp", "ocp"];
+                document.getElementById("apply-btn").disabled = !connected;
+                profileSettingInputs.forEach((id) => {
+                    document.getElementById(id).disabled = !connected;
+                });
+                outputBtn.disabled = !connected;
+                document.getElementById("out-v").disabled = !connected;
+                document.getElementById("out-a").disabled = !connected;
+                document.querySelectorAll(".profile-btn").forEach((b) => {
+                    b.style.opacity = connected && outputOn ? "0.4" : "1.0";
+                });
+            }
 
             // Chart.js
             const MAX_POINTS = 60;
@@ -509,7 +653,6 @@
                 chart.update();
             }
 
-            // ポーリング
             async function poll() {
                 try {
                     const info = await invoke("get_basic_info");
@@ -528,34 +671,37 @@
                 connectBtn.textContent = "接続";
                 connectBtn.classList.add("disconnected");
                 document.getElementById("device-name").textContent = "未接続";
-                updateUI(); // pdateUI → updateUI
+                updateUI();
             }
 
-            // 接続ボタン
             const connectBtn = document.getElementById("connect-btn");
             connectBtn.addEventListener("click", async () => {
                 if (connected) {
                     disconnect();
                     return;
                 }
-
                 try {
-                    // デバイス情報取得
                     const name = await invoke("get_device_info");
-                    // 全プロファイル取得してキャッシュ
                     profiles = await invoke("get_all_profiles");
                     connected = true;
                     connectBtn.textContent = "切断";
                     connectBtn.classList.remove("disconnected");
                     document.getElementById("device-name").textContent = name;
-                    // プロファイル0を表示
+
+                    // 選択中のプロファイルを表示
                     showProfile(profiles[activeProfileIndex()]);
-                    // 接続時に初期OUTPUT状態を取得
+
+                    // Output Controlの初期値をProfile0から設定
+                    const p = profiles[0];
+                    document.getElementById("out-v").value = p.vset.toFixed(2);
+                    document.getElementById("out-a").value = p.iset.toFixed(3);
+
+                    // 初期OUTPUT状態取得
                     const initialInfo = await invoke("get_basic_info");
                     outputOn = initialInfo.output_on;
                     activeOutputIndex = activeProfileIndex();
                     updateOutputBtn();
-                    // ポーリング開始
+
                     pollTimer = setInterval(poll, 500);
                     updateUI();
                 } catch (e) {
@@ -563,19 +709,8 @@
                         "接続失敗: " + e;
                 }
             });
-            // UI状態を更新する
-            function updateUI() {
-                const inputs = ["vset", "iset", "ovp", "ocp"];
-                outputBtn.disabled = !connected;
-                inputs.forEach((id) => {
-                    document.getElementById(id).disabled =
-                        !connected || outputOn;
-                });
-                // OUTPUT ON中はプロファイルボタンを半透明に
-                document.querySelectorAll(".profile-btn").forEach((b) => {
-                    b.style.opacity = connected && outputOn ? "0.4" : "1.0";
-                });
-            }
+
+            updateUI();
         </script>
     </body>
 </html>

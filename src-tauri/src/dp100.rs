@@ -160,31 +160,35 @@ impl Dp100 {
         Ok(())
     }
 
-    // 出力ON/OFF (0x35 / 0x2X)
-    pub fn set_output(&self, index: u8, on: bool) -> Result<(), String> {
-        // まずプロファイル情報を取得
-        let profile = self.get_profile(index)?;
-        let vset = (profile.vset * 1000.0) as u16;
-        let iset = (profile.iset * 1000.0) as u16;
-        let ovp = (profile.ovp * 1000.0) as u16;
-        let ocp = (profile.ocp * 1000.0) as u16;
+    // 出力中の電圧・電流を即時変更（プロファイル保存なし）
+    pub fn set_output_immediate(
+        &self,
+        index: u8,
+        on: bool,
+        vset: f64,
+        iset: f64,
+        ovp: f64,
+        ocp: f64,
+    ) -> Result<(), String> {
+        let vset_raw = (vset * 1000.0) as u16;
+        let iset_raw = (iset * 1000.0) as u16;
+        let ovp_raw = (ovp * 1000.0) as u16;
+        let ocp_raw = (ocp * 1000.0) as u16;
 
         let data = [
-            0x20 | (index & 0x0F), // ON/OFFコマンド
-            on as u8,              // ON=1 / OFF=0
-            (vset & 0xFF) as u8,
-            (vset >> 8) as u8,
-            (iset & 0xFF) as u8,
-            (iset >> 8) as u8,
-            (ovp & 0xFF) as u8,
-            (ovp >> 8) as u8,
-            (ocp & 0xFF) as u8,
-            (ocp >> 8) as u8,
+            0x20 | (index & 0x0F),
+            on as u8,
+            (vset_raw & 0xFF) as u8,
+            (vset_raw >> 8) as u8,
+            (iset_raw & 0xFF) as u8,
+            (iset_raw >> 8) as u8,
+            (ovp_raw & 0xFF) as u8,
+            (ovp_raw >> 8) as u8,
+            (ocp_raw & 0xFF) as u8,
+            (ocp_raw >> 8) as u8,
         ];
-        //log::info!("set_output data: {:02X?}", &data);
         self.send(CMD_BASIC_SET, &data)?;
-        //let resp = self.recv(CMD_BASIC_SET)?;
-        //log::info!("set_output response: {:02X?}", &resp[0..4.min(resp.len())]);
+        self.recv(CMD_BASIC_SET)?;
         Ok(())
     }
 }

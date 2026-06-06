@@ -48,9 +48,16 @@ fn set_profile(profile: dp100::Profile) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn set_output(index: u8, on: bool) -> Result<(), String> {
+fn set_output_immediate(
+    index: u8,
+    on: bool,
+    vset: f64,
+    iset: f64,
+    ovp: f64,
+    ocp: f64,
+) -> Result<(), String> {
     let dev = dp100::Dp100::open()?;
-    dev.set_output(index, on)
+    dev.set_output_immediate(index, on, vset, iset, ovp, ocp)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -71,7 +78,7 @@ pub fn run() {
             get_device_info,
             get_all_profiles,
             set_profile,
-            set_output,
+            set_output_immediate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
