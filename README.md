@@ -87,6 +87,38 @@ src-tauri/target/release/bundle/
 └── rpm/dp100-gui-x.x.x.x86_64.rpm           # Fedora/RHEL
 ```
 
+## ビルド手順(Windows)
+
+Windowsで環境構築して同じ手順でビルドします
+
+```powershell
+powershell# Rustインストール (rustup-init.exe)
+# Node.jsインストール
+# Tauri CLIインストール
+cargo install tauri-cli --version "^2"
+
+# ビルド
+cargo tauri build
+```
+
+### 成果物:
+
+```
+src-tauri/target/release/bundle/
+└── msi/dp100-gui_0.1.0_x64_en-US.msi  ← インストーラー
+└── nsis/dp100-gui_0.1.0_x64-setup.exe ← インストーラー
+```
+
+### Windowsでの注意点
+HIDアクセスはWindowsでは管理者権限不要ですが、`hidapi` のWindows向けビルドに追加依存が必要です:
+
+```toml
+# Cargo.toml
+[target.'cfg(windows)'.dependencies]
+hidapi = { version = "2.6", features = ["windows-native"] }
+```
+
+
 ## 使い方
 
 1. DP100をUSBケーブルで接続（USBDモード: `◀` を2回タップで切替）
